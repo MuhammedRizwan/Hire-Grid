@@ -1,65 +1,173 @@
-import Image from "next/image";
+// app/page.tsx (Dashboard)
+'use client';
 
-export default function Home() {
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { Plus, Download, LayoutGrid, Table } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { StatsCards } from '../components/dashboard/stats_card';
+import { ApplicationTable } from '../components/application/application_table';
+import { ApplicationForm } from '../components/application/application_form';
+import { KanbanBoard } from '../components/application/kanban_board';
+import { useAuth } from '../hooks/useAuth';
+import { useApplications } from '../hooks/useApplication';
+import toast from 'react-hot-toast';
+import { IJobApplication } from '@/types';
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const { user, token } = useAuth();
+  const [view, setView] = useState<'table' | 'kanban'>('table');
+  const [showForm, setShowForm] = useState(false);
+  const [editingApp, setEditingApp] = useState<IJobApplication | null>(null);
+
+  const { applications, stats, loading, fetchApplications, createApplication, updateApplication, deleteApplication } = useApplications(token);
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+    } else {
+      fetchApplications();
+    }
+  }, [user]);
+
+  const handleCreateApplication = async (data: FormData) => {
+    try {
+      await createApplication(data);
+      toast.success('Application created successfully');
+      setShowForm(false);
+      fetchApplications();
+    } catch (error) {
+      toast.error('Failed to create application');
+    }
+  };
+
+  const handleUpdateApplication = async (data: FormData) => {
+    if (!editingApp) return;
+    try {
+      await updateApplication(editingApp._id, data);
+      toast.success('Application updated successfully');
+      setShowForm(false);
+      setEditingApp(null);
+      fetchApplications();
+    } catch (error) {
+      toast.error('Failed to update application');
+    }
+  };
+
+  const handleDeleteApplication = async (id: string) => {
+    if (confirm('Are you sure you want to delete this application?')) {
+      try {
+        await deleteApplication(id);
+        toast.success('Application deleted successfully');
+        fetchApplications();
+      } catch (error) {
+        toast.error('Failed to delete application');
+      }
+    }
+  };
+
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8"
+        >
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Job Applications
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Track and manage your job applications
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <div className="flex bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-1">
+              <button
+                onClick={() => setView('table')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'table'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <Table className="w-4 h-4 inline mr-1" />
+                Table
+              </button>
+              <button
+                onClick={() => setView('kanban')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'kanban'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <LayoutGrid className="w-4 h-4 inline mr-1" />
+                Kanban
+              </button>
+            </div>
+
+            <Button
+              onClick={() => setShowForm(true)}
+              icon={<Plus className="w-4 h-4" />}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              Add Application
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* Stats Cards */}
+        <StatsCards stats={stats} />
+
+        {/* Applications View */}
+        <div className="mt-8">
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : view === 'table' ? (
+            <ApplicationTable
+              data={applications}
+              onEdit={(app) => {
+                setEditingApp(app);
+                setShowForm(true);
+              }}
+              onDelete={handleDeleteApplication}
+              onSendEmail={(app) => {
+                // Implement email sending
+                toast.success('Email feature coming soon');
+              }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          ) : (
+            <KanbanBoard
+              applications={applications}
+              onUpdateStatus={async (id, status) => {
+                await updateApplication(id, { status });
+                fetchApplications();
+              }}
+            />
+          )}
         </div>
-      </main>
+      </div>
+
+      {/* Application Form Modal */}
+      {showForm && (
+        <ApplicationForm
+          application={editingApp as IJobApplication}
+          onSubmit={editingApp ? handleUpdateApplication : handleCreateApplication}
+          onClose={() => {
+            setShowForm(false);
+            setEditingApp(null);
+          }}
+        />
+      )}
     </div>
   );
 }
